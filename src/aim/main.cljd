@@ -1,0 +1,9 @@
+(ns aim.main
+  (:require ["dart:io" :as io]))
+
+(defn main
+  []
+  (let [server (await (.bind io/HttpServer (.-anyIPv6 io/InternetAddress) 8080))]
+    (.forEach server (fn [^io/HttpRequest r]
+                       (.close (.-response r))
+                       nil))))
