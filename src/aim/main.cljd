@@ -5,18 +5,24 @@
 (defn request->ring
   [^io/HttpRequest r]
   ;; https://api.dart.dev/stable/2.17.1/dart-io/HttpRequest-class.html
+  ;; https://github.com/ring-clojure/ring/blob/master/SPEC
   (let [request-method (keyword (string/lower-case (.-method r)))
         protocol (str "HTTP/" (.-protocolVersion r))
-        uri (.-requestedUri r)]
+        headers (.-headers r)
+        uri (str (.-uri r))
+        *headers (atom {})]
+    (.forEach headers (fn [name values]
+                        (swap! *headers assoc name (mapv str values))))
     {:request-method request-method
      :uri            uri
+     :headers        @*headers
      :protocol       protocol}))
 
 (defn main
   []
-  (let [^io/HttpServer server (await (.bind io/HttpServer (.-anyIPv6 io/InternetAddress) 8080))]
+  (let [server (await (.bind io/HttpServer (.-anyIPv6 io/InternetAddress) 8080))]
     (.forEach server (fn [^io/HttpRequest r]
-                       (let [^io/HttpResponse response (.-response r)]
+                       (let [response (.-response r)]
                          (prn (request->ring r))
                          (.write response "Hello")
                          (.close response))

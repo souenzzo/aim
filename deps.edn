@@ -1,4 +1,4 @@
 {:paths ["src"]
  :deps  {org.clojure/clojure      {:mvn/version "1.11.1"}
          tensegritics/clojuredart {:git/url "https://github.com/tensegritics/ClojureDart.git"
-                                   :sha     "5e431f4d866a3b2e7d3b4a9ac5f56fcc2de90c68"}}}
+                                   :sha     "8264f2178bd3f028c856391059d010132eb3c18c"}}}
