@@ -1,9 +1,24 @@
 (ns aim.main
-  (:require ["dart:io" :as io]))
+  (:require ["dart:io" :as io]
+            [clojure.string :as string]))
+
+(defn request->ring
+  [^io/HttpRequest r]
+  ;; https://api.dart.dev/stable/2.17.1/dart-io/HttpRequest-class.html
+  (let [request-method (keyword (string/lower-case (.-method r)))
+        protocol (str "HTTP/" (.-protocolVersion r))
+        uri (.-requestedUri r)]
+    {:request-method request-method
+     :uri            uri
+     :protocol       protocol}))
 
 (defn main
   []
-  (let [server (await (.bind io/HttpServer (.-anyIPv6 io/InternetAddress) 8080))]
+  (let [^io/HttpServer server (await (.bind io/HttpServer (.-anyIPv6 io/InternetAddress) 8080))]
     (.forEach server (fn [^io/HttpRequest r]
-                       (.close (.-response r))
+                       (let [^io/HttpResponse response (.-response r)]
+                         (prn (request->ring r))
+                         (.write response "Hello")
+                         (.close response))
                        nil))))
+
