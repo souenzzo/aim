@@ -61,13 +61,33 @@
                     ;;  The SSL client certificate, if supplied.
                     :ssl-client-cert certificate))))
 
-(defn main
-  []
-  (let [server (await (.bind io/HttpServer (.-anyIPv6 io/InternetAddress) 8081))]
+
+(defn run-server
+  ;; like http://http-kit.github.io/server.html
+  [ring-handler {:keys [port]}]
+  (let [server (await (.bind io/HttpServer (.-anyIPv6 io/InternetAddress) port))]
     (.forEach server (fn [^io/HttpRequest r]
-                       (let [response (.-response r)]
-                         (prn (request->ring r))
-                         (.write response "Hello")
+                       (let [{:keys [status body headers]} (ring-handler (request->ring r))
+                             response (.-response r)
+                             response-headers (.-headers response)]
+                         (when status
+                           ;; TODO
+                           ;;  response.statusCode = status;
+                           (set! (.-statusCode response) status))
+                         (doseq [[k v] headers]
+                           (.add response-headers (str k) (str v)))
+                         (cond
+                           (fn? body) (body response)
+                           (coll? body) (.writeAll response (mapv str body))
+                           body (.write response body))
                          (.close response))
                        nil))))
+(defn main
+  []
+  (run-server (fn [req]
+                (prn req)
+                {:status  202
+                 :headers {"Hello" "world"}
+                 :body    "ok!"})
+    {:port 8081}))
 
