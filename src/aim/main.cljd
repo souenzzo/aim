@@ -71,8 +71,6 @@
                              response (.-response r)
                              response-headers (.-headers response)]
                          (when status
-                           ;; TODO
-                           ;;  response.statusCode = status;
                            (set! (.-statusCode response) status))
                          (doseq [[k v] headers]
                            (.add response-headers (str k) (str v)))
