@@ -1,0 +1,12 @@
+(ns aim.simple
+  (:require ["dart:io" :as io]
+            [aim.core :as aim]))
+
+(defn run-server
+  ;; like http://http-kit.github.io/server.html
+  [ring-handler & {:keys [port ip]
+                   :or   {port 8090
+                          ip   (.-anyIPv6 io/InternetAddress)}}]
+  (let [server (await (.bind io/HttpServer ip port))
+        action (aim/->action-handler ring-handler)]
+    (.forEach server action)))

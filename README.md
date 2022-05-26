@@ -17,6 +17,6 @@ br.com.souenzzo/aim {:git/url "https://github.com/souenzzo/aim"
                      :git/sha "70d48c6c08b3cde9619a7c723135c8758c8abfd8"}
 ```
 
-Require `[aim.main :as aim]` namespace
+Require `[aim.simple :as aims]` namespace
 
-and use it: `(run-server (fn [ring-request] ... ring-response) {:port 8080})`
+and use it: `(aims/run-server (fn [ring-request] ... ring-response) {:port 8080})`
