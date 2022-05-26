@@ -12,7 +12,7 @@
   []
   (run-server (fn [req]
                 (prn req)
-                {:status  202
+                {:status  200
                  :headers {"Hello" "world"}
                  :body    "ok!"})
     {:port 8081}))

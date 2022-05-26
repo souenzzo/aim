@@ -4,22 +4,24 @@
 
 
 (defn request->ring
-  [^io/HttpRequest r]
+  [^io/HttpRequest http-request]
   ;; https://api.dart.dev/stable/2.17.1/dart-io/HttpRequest-class.html
   ;; https://github.com/ring-clojure/ring/blob/master/SPEC
-  (let [uri (.-uri r)
-        certificate (.-certificate r)]
+  (let [uri (.-uri http-request)
+        certificate (.-certificate http-request)
+        connection-info (.-connectionInfo http-request)
+        remote-address (.-remoteAddress connection-info)]
     (cond-> {;;   (Required, Integer)
              ;;   The port on which the request is being handled.
-             :server-port    (.-localPort (.-connectionInfo r))
+             :server-port    (.-localPort connection-info)
 
              ;;   (Required, String)
              ;;   The resolved server name, or the server IP address.
-             :server-name    (.-host (.-remoteAddress (.-connectionInfo r)))
+             :server-name    (.-host remote-address)
 
              ;;   (Required, String)
              ;;   The IP address of the client or the last proxy that sent the request.
-             :remote-addr    (.-address (.-remoteAddress (.-connectionInfo r)))
+             :remote-addr    (.-address remote-address)
 
              ;;   (Required, String)
              ;;   The request URI, excluding the query string and the "?" separator.
@@ -34,25 +36,25 @@
              ;;  (Required, clojure.lang.Keyword)
              ;;  The HTTP request method, must be a lowercase keyword corresponding to a HTTP
              ;;  request method, such as :get or :post.
-             :request-method (keyword (string/lower-case (.-method r)))
+             :request-method (keyword (string/lower-case (.-method http-request)))
 
              ;;  (Required, clojure.lang.IPersistentMap)
              ;;  A Clojure map of downcased header name Strings to corresponding header value
              ;;  Strings. When there are multiple headers with the same name, the header
              ;;  values are concatenated together, separated by the "," character.
              :headers        (let [*headers (atom {})]
-                               (.forEach (.-headers r)
+                               (.forEach (.-headers http-request)
                                  (fn [name values]
                                    (swap! *headers assoc name (string/join "," (map str values)))))
                                @*headers)
 
              ;; (Optional, java.io.InputStream)
              ;; An InputStream for the request body, if present.
-             :body           r
+             :body           http-request
 
              ;;  (Required, String)
              ;;  The protocol the request was made with, e.g. "HTTP/1.1".
-             :protocol       (str "HTTP/" (.-protocolVersion r))}
+             :protocol       (str "HTTP/" (.-protocolVersion http-request))}
       (.-hasQuery uri) (assoc
                          ;;   (Optional, String)
                          ;;   The query string, if present.
@@ -65,18 +67,18 @@
 
 (defn ->action-handler
   [ring-handler]
-  (fn [^io/HttpRequest request]
-    (let [ring-request (request->ring request)
+  (fn [^io/HttpRequest http-request]
+    (let [ring-request (request->ring http-request)
           {:keys [status body headers]} (ring-handler ring-request)
-          response (.-response request)
-          response-headers (.-headers response)]
+          http-response (.-response http-request)
+          http-headers (.-headers http-response)]
       (when status
-        (set! (.-statusCode response) status))
+        (set! (.-statusCode http-response) status))
       (doseq [[k v] headers]
-        (.add response-headers (str k) (str v)))
+        (.add http-headers (str k) (str v)))
       (cond
-        (fn? body) (body response)
-        (coll? body) (.writeAll response (mapv str body))
-        body (.write response body))
-      (.close response))
+        (fn? body) (body http-response)
+        (coll? body) (.writeAll http-response (mapv str body))
+        body (.write http-response body))
+      (.close http-response))
     nil))
