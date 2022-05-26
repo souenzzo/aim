@@ -1,0 +1,82 @@
+(ns aim.core
+  (:require ["dart:io" :as io]
+            [clojure.string :as string]))
+
+
+(defn request->ring
+  [^io/HttpRequest r]
+  ;; https://api.dart.dev/stable/2.17.1/dart-io/HttpRequest-class.html
+  ;; https://github.com/ring-clojure/ring/blob/master/SPEC
+  (let [uri (.-uri r)
+        certificate (.-certificate r)]
+    (cond-> {;;   (Required, Integer)
+             ;;   The port on which the request is being handled.
+             :server-port    (.-localPort (.-connectionInfo r))
+
+             ;;   (Required, String)
+             ;;   The resolved server name, or the server IP address.
+             :server-name    (.-host (.-remoteAddress (.-connectionInfo r)))
+
+             ;;   (Required, String)
+             ;;   The IP address of the client or the last proxy that sent the request.
+             :remote-addr    (.-address (.-remoteAddress (.-connectionInfo r)))
+
+             ;;   (Required, String)
+             ;;   The request URI, excluding the query string and the "?" separator.
+             ;;   Must start with "/".
+             :uri            (.-path uri)
+
+             ;;  (Required, clojure.lang.Keyword)
+             ;;  The transport protocol, must be one of :http or :https.
+             :scheme         (if certificate :https :http)
+
+
+             ;;  (Required, clojure.lang.Keyword)
+             ;;  The HTTP request method, must be a lowercase keyword corresponding to a HTTP
+             ;;  request method, such as :get or :post.
+             :request-method (keyword (string/lower-case (.-method r)))
+
+             ;;  (Required, clojure.lang.IPersistentMap)
+             ;;  A Clojure map of downcased header name Strings to corresponding header value
+             ;;  Strings. When there are multiple headers with the same name, the header
+             ;;  values are concatenated together, separated by the "," character.
+             :headers        (let [*headers (atom {})]
+                               (.forEach (.-headers r)
+                                 (fn [name values]
+                                   (swap! *headers assoc name (string/join "," (map str values)))))
+                               @*headers)
+
+             ;; (Optional, java.io.InputStream)
+             ;; An InputStream for the request body, if present.
+             :body           r
+
+             ;;  (Required, String)
+             ;;  The protocol the request was made with, e.g. "HTTP/1.1".
+             :protocol       (str "HTTP/" (.-protocolVersion r))}
+      (.-hasQuery uri) (assoc
+                         ;;   (Optional, String)
+                         ;;   The query string, if present.
+                         :query-string (.-query uri))
+      certificate (assoc
+                    ;;  (Optional, java.security.cert.X509Certificate)
+                    ;;  The SSL client certificate, if supplied.
+                    :ssl-client-cert certificate))))
+
+
+(defn ->action-handler
+  [ring-handler]
+  (fn [^io/HttpRequest request]
+    (let [ring-request (request->ring request)
+          {:keys [status body headers]} (ring-handler ring-request)
+          response (.-response request)
+          response-headers (.-headers response)]
+      (when status
+        (set! (.-statusCode response) status))
+      (doseq [[k v] headers]
+        (.add response-headers (str k) (str v)))
+      (cond
+        (fn? body) (body response)
+        (coll? body) (.writeAll response (mapv str body))
+        body (.write response body))
+      (.close response))
+    nil))
