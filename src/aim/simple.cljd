@@ -9,4 +9,6 @@
                           ip   (.-anyIPv6 io/InternetAddress)}}]
   (let [server (await (.bind io/HttpServer ip port))
         action (aim/->action-handler ring-handler)]
-    (.forEach server action)))
+    (.forEach server action)
+    (fn []
+      (.close server))))
